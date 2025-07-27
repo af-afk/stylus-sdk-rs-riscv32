@@ -1,6 +1,8 @@
 // Copyright 2025, Offchain Labs, Inc.
 // For licensing, see https://github.com/OffchainLabs/stylus-sdk-rs/blob/main/licenses/COPYRIGHT.md
 
+#![cfg(not(any(target_arch = "wasm32", target_arch = "riscv32")))]
+
 //! CLI for `cargo-stylus`.
 
 use std::process::ExitCode;

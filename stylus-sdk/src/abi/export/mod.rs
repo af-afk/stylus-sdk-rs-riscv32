@@ -1,6 +1,8 @@
 // Copyright 2023-2024, Offchain Labs, Inc.
 // For licensing, see https://github.com/OffchainLabs/stylus-sdk-rs/blob/main/licenses/COPYRIGHT.md
 
+#![cfg(not(any(target_arch = "wasm32", target_arch = "riscv32")))]
+
 //! Traits for exporting Solidity interfaces.
 //!
 //! The contents of this module are imported when the `export-abi` feature flag is enabled,

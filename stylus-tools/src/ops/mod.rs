@@ -1,6 +1,8 @@
 // Copyright 2025, Offchain Labs, Inc.
 // For licensing, see https://github.com/OffchainLabs/stylus-sdk-rs/blob/main/licenses/COPYRIGHT.md
 
+#![cfg(not(any(target_arch = "wasm32", target_arch = "riscv32")))]
+
 pub use build::{build_contract, build_workspace};
 pub use check::{check_wasm_file, check_workspace};
 pub use codegen::c_gen;

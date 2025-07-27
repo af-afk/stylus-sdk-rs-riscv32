@@ -36,12 +36,12 @@ macro_rules! vm_hooks {
                 $(#[$block_meta])*
                 $(
                     $(#[$meta])*
-                    #[allow(unused, unused_variables, clippy::missing_safety_doc)]
+                    #[allow(unused, clippy::missing_safety_doc)]
                     $vis unsafe fn $func($($arg : $arg_type),*) $(-> $return_type)? {
                         panic!("HostIO functions are not available in stylus-test. Use TestVM functions instead.");
                     }
                 )*
-            } else {
+            } else if #[cfg(target_arch = "wasm32")] {
                 // Generate a wasm import for each function.
                 $(#[$block_meta])*
                 #[link(wasm_import_module = $link)]
@@ -51,9 +51,95 @@ macro_rules! vm_hooks {
                         $vis fn $func($($arg : $arg_type),*) $(-> $return_type)?;
                     )*
                 }
+            } else if #[cfg(target_arch = "riscv32")] {
+                $(#[$block_meta])*
+                vm_hooks!(@generate_riscv_funcs 0; $($(#[$meta])* $vis fn $func($($arg : $arg_type),*) $(-> $return_type)?;)*);
             }
         }
     };
+
+    (@generate_riscv_funcs $syscall_num:expr;) => {};
+    (@generate_riscv_funcs $syscall_num:expr; $(#[$meta:meta])* $vis:vis fn $func:ident($($arg:ident : $arg_type:ty),*) $(-> $return_type:ty)?; $($rest:tt)*) => {
+        $(#[$meta])*
+        #[allow(unused, unused_variables, clippy::missing_safety_doc)]
+        $vis unsafe fn $func($($arg : $arg_type),*) $(-> $return_type)? {
+            let args = [
+                $(vm_hooks!(@arg_to_usize $arg)),*
+            ];
+            let r: u32;
+            core::arch::asm!(
+                "ecall",
+                in("a7") $syscall_num,
+                in("a0") args.get(0).copied().unwrap_or(0),
+                in("a1") args.get(1).copied().unwrap_or(0),
+                in("a2") args.get(2).copied().unwrap_or(0),
+                in("a3") args.get(3).copied().unwrap_or(0),
+                in("a4") args.get(4).copied().unwrap_or(0),
+                in("a5") args.get(5).copied().unwrap_or(0),
+                in("a6") args.get(6).copied().unwrap_or(0),
+                lateout("a0") r,
+                options(nostack, preserves_flags)
+            );
+            handle_return!(r, $($return_type)?)
+        }
+        vm_hooks!(@generate_riscv_funcs $syscall_num + 1; $($rest)*);
+    };
+
+    (@count) => { 0 };
+    (@count fn $head:ident $($tail:tt)*) => { 1 + vm_hooks!(@count $($tail)*) };
+
+    (@arg_to_usize $arg:ident) => { $arg as usize };
+}
+
+trait ReturnHandler {
+    fn handle(x: u32) -> Self;
+}
+
+impl ReturnHandler for usize {
+    fn handle(r: u32) -> Self {
+        r as usize
+    }
+}
+
+impl ReturnHandler for u32 {
+    fn handle(r: u32) -> Self {
+        r as u32
+    }
+}
+
+impl ReturnHandler for u64 {
+    fn handle(r: u32) -> Self {
+        let v: u32;
+        unsafe {
+            core::arch::asm!(
+                "mv {}, a1",
+                out(reg) v,
+            );
+        }
+        (u64::from(r) << 32) | u64::from(v)
+    }
+}
+
+impl ReturnHandler for u8 {
+    fn handle(r: u32) -> Self {
+        r.to_be_bytes()[0]
+    }
+}
+
+impl ReturnHandler for bool {
+    fn handle(r: u32) -> Self {
+        r.to_be_bytes()[0] != 0
+    }
+}
+
+macro_rules! handle_return {
+    ($result:ident,) => {
+        ()
+    };
+    ($result:ident, $t:ty) => {{
+        let x: $t = ReturnHandler::handle($result);
+        x
+    }};
 }
 
 vm_hooks! {
