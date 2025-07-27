@@ -55,3 +55,7 @@ stylus-core = { path = "stylus-core", version = "0.10.0-beta.0" }
 stylus-test = { path = "stylus-test", version = "0.10.0-beta.0" }
 stylus-proc = { path = "stylus-proc", version = "0.10.0-beta.0" }
 stylus-tools = { path = "stylus-tools", version = "0.10.0-beta.0" }
+
+[patch.crates-io]
+const-hex = { git = "https://github.com/DaniPopes/const-hex" }
+dyn-clone = { git = "https://github.com/dtolnay/dyn-clone" }
